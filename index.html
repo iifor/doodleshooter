@@ -1,9 +1,16 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>涂鸦街区</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#f6f3e6">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="icon" href="./favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="./favicon.svg">
+<link rel="manifest" href="./manifest.webmanifest">
+<title>Doodle District</title>
 <link rel="stylesheet" href="./style.css">
 <script type="importmap">
 { "imports": {
@@ -15,6 +22,8 @@
 <body>
 <canvas id="c"></canvas>
 <div id="hud"></div>
+<div id="touch" translate="no"></div>
+<div id="rotate">Please rotate your phone<small>this game plays in landscape</small></div>
 <script src="./vendor/peerjs/peerjs.min.js"></script>
 <script type="module" src="./src/main.js"></script>
 </body>

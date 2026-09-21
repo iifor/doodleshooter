@@ -1,0 +1,10 @@
+{
+  "name": "Doodle District",
+  "short_name": "Doodle District",
+  "start_url": "./index.html",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#f6f3e6",
+  "theme_color": "#f6f3e6",
+  "icons": [{ "src": "./favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}

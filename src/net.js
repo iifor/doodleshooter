@@ -115,7 +115,7 @@ export class Net {
   // try every public slot at the same time and take the first host that says welcome
   async quickJoin(meta = {}, onStatus = null) {
     this.leave(); this.isHost = false; this.peer = await this._newPeer(null); this.id = this.peer.id; this._keepAlive(this.peer);
-    if (onStatus) onStatus('正在寻找开放的大厅…');
+    if (onStatus) onStatus('looking for an open lobby…');
     const ids = []; for (let i = 0; i < PUBLIC_SLOTS; i++) for (const suf of ['', '-1', '-2', '-3']) ids.push(PREFIX + 'PUB' + i + suf);
     const winner = await new Promise((resolve) => {
       let pending = ids.length, done = false; const attempts = [], offers = []; let gather = null;
@@ -129,7 +129,7 @@ export class Net {
       for (const hostId of ids) {
         let conn; try { conn = this.peer.connect(hostId, { reliable: true, serialization: 'json', metadata: probeMeta }); } catch (e) { pending--; continue; }
         const a = { conn, hostId, done: false }; attempts.push(a);
-        conn.on('data', (msg) => { if (!msg || a.done) return; if (msg.t === 'welcome') { a.done = true; pending--; offers.push({ conn, hostId, welcome: msg.d }); if (onStatus) onStatus(`找到 ${offers.length} 个开放大厅…`); if (pending <= 0) settle(); else if (!gather) gather = setTimeout(settle, 1500); } else if (msg.t === 'refused') failOne(a); });
+        conn.on('data', (msg) => { if (!msg || a.done) return; if (msg.t === 'welcome') { a.done = true; pending--; offers.push({ conn, hostId, welcome: msg.d }); if (onStatus) onStatus(`found ${offers.length} open ${offers.length === 1 ? 'lobby' : 'lobbies'}…`); if (pending <= 0) settle(); else if (!gather) gather = setTimeout(settle, 1500); } else if (msg.t === 'refused') failOne(a); });
         conn.on('error', () => failOne(a)); conn.on('close', () => failOne(a));
       }
       if (pending <= 0) settle();
@@ -155,7 +155,7 @@ export class Net {
       for (const hostId of ids) {
         let conn; try { conn = peer.connect(hostId, { reliable: true, serialization: 'json', metadata: probeMeta }); } catch (e) { pending--; continue; }
         const a = { conn, hostId, done: false }; attempts.push(a);
-        conn.on('data', (msg) => { if (!msg || a.done) return; if (msg.t === 'welcome' || msg.t === 'refused') { a.done = true; pending--; const d = msg.d || {}; offers.push({ id: hostId.slice(PREFIX.length), code: d.code || hostId.slice(PREFIX.length), players: d.players || 0, max: d.max || 10, inMatch: !!d.inMatch, hostName: d.hostName || '', full: msg.t === 'refused' }); if (onStatus) onStatus(`找到 ${offers.length} 个…`); if (pending <= 0) settle(); else if (!gather) gather = setTimeout(settle, 2200); } });
+        conn.on('data', (msg) => { if (!msg || a.done) return; if (msg.t === 'welcome' || msg.t === 'refused') { a.done = true; pending--; const d = msg.d || {}; offers.push({ id: hostId.slice(PREFIX.length), code: d.code || hostId.slice(PREFIX.length), players: d.players || 0, max: d.max || 10, inMatch: !!d.inMatch, hostName: d.hostName || '', full: msg.t === 'refused' }); if (onStatus) onStatus(`found ${offers.length}…`); if (pending <= 0) settle(); else if (!gather) gather = setTimeout(settle, 2200); } });
         conn.on('error', () => failOne(a)); conn.on('close', () => failOne(a));
       }
       if (pending <= 0) settle();

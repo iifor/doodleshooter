@@ -89,7 +89,7 @@ export class Player {
     ctx.effects.strokeBurst(proj.pos, INK.BLUE, perfect ? 8 : 5, 4.5, { life: 0.2, size: 0.028 });
     ctx.input.rumble(0.4, 0.6, 70); ctx.game.hitstop(perfect ? 0.07 : 0.025, 0.18);
     ctx.effects.shakeAmt += 0.06; this.flashFx = perfect ? 0.35 : 0.1;
-    ctx.game.addScore(perfect ? 60 : 15, perfect ? '完美招架' : '格挡成功');
+    ctx.game.addScore(perfect ? 60 : 15, perfect ? 'PERFECT PARRY' : 'BLOCKED');
     return { perfect, ret };
   }
   get parryWindow() { return this.isBlocking && this.blockHeld < PARRY_WINDOW; }
@@ -98,7 +98,7 @@ export class Player {
     _v.subVectors(e.center, this.eye).normalize(); if (_v.dot(this.forward) < 0.35) return false;
     this.weapon.onDeflect(true); audio.parry(); this.ctx.game.hitstop(0.06, 0.15);
     this.ctx.effects.sparks(_v2.copy(this.eye).addScaledVector(this.forward, 0.8), this.forward.clone().negate(), INK.ORANGE, 12, 8);
-    this.ctx.game.addScore(40, '格挡成功'); this.ctx.input.rumble(0.6, 0.6, 100); return true;
+    this.ctx.game.addScore(40, 'BLOCKED'); this.ctx.input.rumble(0.6, 0.6, 100); return true;
   }
   die() { this.alive = false; this.deathT = 0; audio.death(); this.detachGrapple(false); this.ctx.game.onPlayerDeath(); }
   idleCam(t) {
@@ -193,7 +193,7 @@ export class Player {
     ctx.world.moveBody(b, dt);
     if (b.pos.y < -12 || Math.abs(b.pos.x) > 95 || Math.abs(b.pos.z) > 95) {
       this.detachGrapple(false); b.pos.copy(ctx.level.playerStart); b.vel.set(0, 0, 0); this.takeDamage(20, null); if (this.onFall) this.onFall();
-      ctx.hud.message('掉出纸面', '已在起点重新绘制', 1.8);
+      ctx.hud.message('OFF THE PAGE', 'redrawn at the start', 1.8);
     }
     if (b.onGround && !this.lastGround) {
       const impact = clamp(-b.landVel / 14, 0, 1.5); this.landDip.kick(-impact * 6 - 0.5); audio.land(impact);
@@ -208,7 +208,7 @@ export class Player {
     this.stamPause -= dt;
     if (this.grapple.state !== 'idle') this.grapStam -= STAM_DRAIN * dt; else if (this.stamPause <= 0) this.grapStam += (b.onGround ? STAM_GROUND : STAM_AIR) * dt;
     this.grapStam = clamp(this.grapStam, 0, 1);
-    if (this.grapple.state === 'on' && this.grapStam <= 0) { this.detachGrapple(false); ctx.hud.tip('喘不过气了 · 落地恢复体力', 1.4); }
+    if (this.grapple.state === 'on' && this.grapStam <= 0) { this.detachGrapple(false); ctx.hud.tip('out of breath · land to recover', 1.4); }
     const hs2 = Math.hypot(b.vel.x, b.vel.z); const moving = b.onGround && hs2 > 0.6 && !this.sliding;
     this.bobAmt = damp(this.bobAmt, moving ? clamp(hs2 / 7, 0.3, 1.4) : 0, 8, dt);
     if (moving) { this.bobPhase += dt * (7 + hs2 * 0.5); this.stepDist += hs2 * dt; if (this.stepDist > (sprinting ? 2.5 : 2.0)) { this.stepDist = 0; audio.footstep(clamp(hs2 / 8, 0.3, 1)); } }
@@ -373,7 +373,7 @@ export class Player {
     return null;
   }
   _fireGrapple() {
-    if (this.grapStam < STAM_MIN) { audio.winded(); this.ctx.hud.tip('抓钩需要缓口气', 0.9); return; }
+    if (this.grapStam < STAM_MIN) { audio.winded(); this.ctx.hud.tip('grapple needs a breather', 0.9); return; }
     const t = this._findGrappleTarget(); if (!t) { audio.empty(); return; }
     this.grapStam -= STAM_FIRE; this.stamPause = STAM_PAUSE;
     const g = this.grapple; g.state = 'fly'; g.anchor.copy(t.point); this._handPos(g.from); g.hook.copy(g.from); g.flyT = 0; g.flyDur = clamp(t.dist / 110, 0.04, 0.6); g.enemy = t.enemy || null; g.mover = t.mover || null; g.t = 0;
@@ -393,7 +393,7 @@ export class Player {
       if (g.mover) g.anchor.copy(g.mover.mesh.position);
       g.flyT += dt; const f = Math.min(1, g.flyT / g.flyDur); g.hook.lerpVectors(g.from, g.anchor, f);
       if (f >= 1) {
-        if (g.enemy) { if (g.enemy.alive) { ctx.enemies.yank(g.enemy, this.center); ctx.game.addScore(30, '拽翻'); audio.grappleHit(); ctx.input.rumble(0.5, 0.5, 90); } this.detachGrapple(false); }
+        if (g.enemy) { if (g.enemy.alive) { ctx.enemies.yank(g.enemy, this.center); ctx.game.addScore(30, 'YANKED'); audio.grappleHit(); ctx.input.rumble(0.5, 0.5, 90); } this.detachGrapple(false); }
         else { g.state = 'on'; g.len = Math.max(1.5, this.center.distanceTo(g.anchor) * 0.94); g.blockedT = 0; g.t = 0; g.swingT = 0; audio.grappleHit(); audio.reelLoop(true); ctx.hud.grappleTarget(2); ctx.input.rumble(0.3, 0.6, 60); if (b.onGround) { b.vel.y = Math.max(b.vel.y, 5); b.onGround = false; } }
       }
     } else if (g.state === 'on') {

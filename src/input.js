@@ -24,10 +24,16 @@ export class Input {
     this.pointerLocked = false; this.anyInput = false; this.lastPadButtons = [];
     this.onLockChange = null; this.onAnyInput = null; this.lastActive = performance.now();
     this.invertY = false; this.onDeviceChange = null;
+    // touch: the overlay in touch.js writes these; usingTouch follows the last pointer type seen
+    this.usingTouch = window.matchMedia('(pointer: coarse)').matches; this.touchMove = { x: 0, y: 0 }; this.touchLook = { x: 0, y: 0 };
+    window.addEventListener('pointerdown', (e) => {
+      const touch = e.pointerType === 'touch' || e.pointerType === 'pen'; if (touch === this.usingTouch) return;
+      this.usingTouch = touch; if (touch) this.usingGamepad = false; if (this.onDeviceChange) this.onDeviceChange(this.usingGamepad, touch);
+    }, true);
 
     window.addEventListener('keydown', (e) => {
       if (e.repeat) return;
-      this.lastActive = performance.now(); const a = KEYMAP[e.code]; if (a) { this.keys[a] = true; if (this.usingGamepad && this.onDeviceChange) this.onDeviceChange(false); this.usingGamepad = false; }
+      this.lastActive = performance.now(); const a = KEYMAP[e.code]; if (a) { this.keys[a] = true; if ((this.usingGamepad || this.usingTouch) && this.onDeviceChange) this.onDeviceChange(false, false); this.usingGamepad = false; this.usingTouch = false; }
       if (!e.shiftKey) this.keys.sprint = false;
       if (['Space', 'Tab', 'ArrowUp', 'ArrowDown'].includes(e.code)) e.preventDefault();
       this.anyInput = true;
@@ -61,6 +67,10 @@ export class Input {
 
   // browsers refuse a new pointer lock for about a second after Esc released the last one, so a
   // failed request is retried until it takes or the game stops wanting it
+  get noLock() { return this.usingGamepad || this.usingTouch; }
+  // touch buttons drive the same action names the keyboard does
+  setAction(a, on) { this.keys[a] = on; if (on) this.wake(); }
+  wake() { this.lastActive = performance.now(); this.anyInput = true; }
   requestLock() {
     this.wantLock = true; if (this.pointerLocked) return;
     const attempt = (opts) => { try { const p = this.canvas.requestPointerLock(opts); return p && p.catch ? p : Promise.resolve(); } catch (err) { return Promise.reject(err); } };
@@ -89,7 +99,8 @@ export class Input {
     let mx = (s.right ? 1 : 0) - (s.left ? 1 : 0);
     let my = (s.forward ? 1 : 0) - (s.back ? 1 : 0);
     // look from mouse
-    let lx = -this.mx * this.mouseSens, ly = -this.my * this.mouseSens; this.mx = 0; this.my = 0;
+    let lx = -this.mx * this.mouseSens + this.touchLook.x, ly = -this.my * this.mouseSens + this.touchLook.y; this.mx = 0; this.my = 0; this.touchLook.x = 0; this.touchLook.y = 0;
+    if (this.touchMove.x || this.touchMove.y) { mx = this.touchMove.x; my = this.touchMove.y; }
 
     const pad = this._getPad(); const padS = {};
     if (pad) {
@@ -111,7 +122,7 @@ export class Input {
         const pressed = b.pressed || b.value > 0.35;
         if (pressed) { s[PADMAP[idx]] = true; padS[PADMAP[idx]] = true; padActive = true; }
       }
-      if (padActive) { if (!this.usingGamepad && this.onDeviceChange) this.onDeviceChange(true); this.usingGamepad = true; this.anyInput = true; this.lastActive = performance.now(); }
+      if (padActive) { if (!this.usingGamepad && this.onDeviceChange) this.onDeviceChange(true, false); this.usingGamepad = true; this.usingTouch = false; this.anyInput = true; this.lastActive = performance.now(); }
       this._pad = pad;
     } else this._pad = null;
     this.padPrev = this.padState; this.padState = padS;
@@ -129,6 +140,7 @@ export class Input {
   anyPressed() { for (const k in this.state) if (this.state[k] && !this.prev[k]) return true; return false; }
 
   rumble(strong = 0.5, weak = 0.5, ms = 80) {
+    if (this.usingTouch) { if (strong >= 0.5 && navigator.vibrate) navigator.vibrate(Math.min(ms, 120)); return; }
     const pad = this._pad; if (!pad) return;
     const act = pad.vibrationActuator || (pad.hapticActuators && pad.hapticActuators[0]);
     if (!act || !act.playEffect) return;
