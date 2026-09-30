@@ -45,10 +45,11 @@ let best = Number(localStorage.getItem('doodle_best') || 0);
 let musicWanted = localStorage.getItem('doodle_music') !== '0';
 let checkpoint = Number(localStorage.getItem('doodle_checkpoint') || 0);
 let myName = (localStorage.getItem('doodle_name') || '').slice(0, 14) || '涂鸦' + Math.floor(Math.random() * 90 + 10);
-const settings = { sens: Number(localStorage.getItem('doodle_sens') || 100), invert: localStorage.getItem('doodle_invert') === '1' };
+const settings = { sens: Number(localStorage.getItem('doodle_sens') || 100), invert: localStorage.getItem('doodle_invert') === '1', enemySpeed: Number(localStorage.getItem('doodle_enemy_speed') ?? 100) };
 function applySettings() {
   input.mouseSens = 0.0022 * settings.sens / 100; input.padSensX = 3.4 * settings.sens / 100; input.padSensY = 2.6 * settings.sens / 100; input.invertY = settings.invert;
-  localStorage.setItem('doodle_sens', String(settings.sens)); localStorage.setItem('doodle_invert', settings.invert ? '1' : '0');
+  enemies.speedScale = settings.enemySpeed / 100;
+  localStorage.setItem('doodle_sens', String(settings.sens)); localStorage.setItem('doodle_invert', settings.invert ? '1' : '0'); localStorage.setItem('doodle_enemy_speed', String(settings.enemySpeed));
 }
 // ---------------- game state ----------------
 const FFA_TARGET = 20, FFA_TIME = 600, RESPAWN = 2.5;
@@ -599,6 +600,7 @@ function settingsHTML() {
     <label>鼠标灵敏度 <input type="range" id="setSens" min="25" max="250" step="5" value="${settings.sens}"><b id="setSensV">${settings.sens}%</b></label>
     <label><input type="checkbox" id="setInv" ${settings.invert ? 'checked' : ''}> 反转垂直视角</label>
     <label><input type="checkbox" id="setMus" ${musicWanted ? 'checked' : ''}> 音乐 <span class="k">(M)</span></label>
+    <label>敌人速度 <input type="range" id="setEnemySpeed" min="0" max="100" step="5" value="${settings.enemySpeed}"><b id="setEnemySpeedV">${settings.enemySpeed}%</b></label>
   </div>`;
 }
 function wireSettings() {
@@ -607,6 +609,8 @@ function wireSettings() {
   const sens = box.querySelector('#setSens'), out = box.querySelector('#setSensV');
   sens.addEventListener('input', () => { settings.sens = Number(sens.value); out.textContent = settings.sens + '%'; applySettings(); });
   box.querySelector('#setInv').addEventListener('change', (e) => { settings.invert = e.target.checked; applySettings(); });
+  const es = box.querySelector('#setEnemySpeed'), esOut = box.querySelector('#setEnemySpeedV');
+  es.addEventListener('input', () => { settings.enemySpeed = Number(es.value); esOut.textContent = settings.enemySpeed + '%'; applySettings(); });
   box.querySelector('#setMus').addEventListener('change', (e) => { musicWanted = e.target.checked; localStorage.setItem('doodle_music', musicWanted ? '1' : '0'); audio.musicOn(musicWanted); });
 }
 function wireName(box) {
