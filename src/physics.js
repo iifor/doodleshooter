@@ -113,9 +113,10 @@ export class World {
     const p = body.pos, v = body.vel;
     body.hitWall = false; body.hitCeiling = false; body.wallNormal.set(0, 0, 0); body.landVel = 0;
     const wasGround = body.onGround;
-    this._moveHoriz(body, v.x * dt, v.z * dt, wasGround || body.alwaysStep);
+    const hs = body.moveScale ?? 1, vs = body.moveScaleY ?? 1;
+    this._moveHoriz(body, v.x * dt * hs, v.z * dt * hs, wasGround || body.alwaysStep);
     if (body._bx !== 0) v.x = 0; if (body._bz !== 0) v.z = 0;
-    const dy = v.y * dt; p.y += dy;
+    const dy = v.y * dt * vs; p.y += dy;
     const r = this._resolveAxis(body, 1, dy);
     body.onGround = false;
     if (r > 0) { body.onGround = true; body.landVel = v.y; if (v.y < 0) v.y = 0; }

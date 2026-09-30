@@ -232,7 +232,7 @@ class Projectiles {
 
 export class EnemyManager {
   constructor(ctx) {
-    this.ctx = ctx; this.enemies = []; this.alive = 0; this.projectiles = new Projectiles(this); this.onKill = null; this.onBoss = null; this._sepT = 0; this._slot = 0; this.mods = { speed: 1, damage: 1 };
+    this.ctx = ctx; this.enemies = []; this.alive = 0; this.projectiles = new Projectiles(this); this.onKill = null; this.onBoss = null; this._sepT = 0; this._slot = 0; this.mods = { speed: 1, damage: 1 }; this.speedScale = 1;
     // mirror mode: this peer is a client; the host owns AI, physics and health, we only render
     this.mirror = false; this.nextId = 1; this.onClientHit = null; this.onSpawn = null; this.byId = new Map();
   }
@@ -330,7 +330,7 @@ export class EnemyManager {
     e.hit = e.hit.filter((h) => h[0] !== 'shield'); e.hitSpheres = e.hit.map(() => new THREE.Vector3()); e.J.shieldG = null; audio.shieldHit(e.center); this.ctx.game.addScore(40, '护盾击碎');
   }
   kill(e, info) {
-    e.alive = false; e.state = 'dead'; e.deadT = 0; this.alive--; e.body.vel.set(0, 0, 0); this._removeLaser(e);
+    e.alive = false; e.state = 'dead'; e.deadT = 0; this.alive--; e.body.vel.set(0, 0, 0); e.body.moveScale = 1; e.body.moveScaleY = 1; this._removeLaser(e);
     const eff = this.ctx.effects, scene = this.ctx.scene; const inkC = e.T.ink === INK.BLACK ? INK.BLACK : INK.RED;
     if (e.face) { e.face.eyes.visible = false; e.face.xeyes.visible = true; }
     const dir = (info.dir || _d.set(0, 0.5, 0)).clone().normalize();
@@ -386,12 +386,16 @@ export class EnemyManager {
         continue;
       }
       if (e.state === 'stunned' && e.laser) this._hideLaser(e);
+      // gravity stays real for walkers so they still land; flyers freeze on every axis
+      e.body.moveScale = this.speedScale; e.body.moveScaleY = e.T.flying ? this.speedScale : 1;
       if (e.T.flying) { this._thinkFlyer(e, dt, pc, P); world.moveBody(e.body, dt); }
       else {
         if (e.state === 'stunned') { if (e.t > e.stunDur) e.state = 'hunt'; }
         else if (P.alive) this._think(e, dt, pp, pc, P); else this._wander(e, dt);
         e.body.vel.y -= 24 * dt; world.moveBody(e.body, dt);
       }
+      // frozen bodies would otherwise bank separation pushes and launch when unfrozen
+      if (this.speedScale === 0) { e.body.vel.x = 0; e.body.vel.z = 0; if (e.T.flying) e.body.vel.y = 0; }
       if (e.body.pos.y < -6) { this.kill(e, { source: 'fall', dir: _up.clone() }); continue; }
       e.yaw = angleLerp(e.yaw, e.yawT, 1 - Math.exp(-10 * dt));
       e.root.position.copy(e.body.pos); e.root.rotation.y = e.yaw;
@@ -515,7 +519,7 @@ export class EnemyManager {
     const T = e.T, b = e.body, ctx = this.ctx;
     const dx = pp.x - b.pos.x, dz = pp.z - b.pos.z; const dist = Math.hypot(dx, dz); const dy = pp.y - b.pos.y;
     e.losT -= dt; if (e.losT <= 0) { e.losT = 0.12 + rand(0, 0.1); e.los = ctx.world.hasLineOfSight(this.eye(e, _eye), pc, SEE_THROUGH); }
-    e.cool -= dt; const yawTo = Math.atan2(dx, dz);
+    e.cool -= dt * this.speedScale; const yawTo = Math.atan2(dx, dz);
     if (T.weapon === 'bomb') {
       if (e.fuseT >= 0) { e.fuseT -= dt; b.vel.x = damp(b.vel.x, 0, 4, dt); b.vel.z = damp(b.vel.z, 0, 4, dt); e.yawT = yawTo; e.flashT = 0.02; if (!e.flashOn) { setFill(e.mat, true); e.flashOn = true; } if (Math.floor(e.fuseT * 8) !== Math.floor((e.fuseT + dt) * 8)) audio.fuse(e.center); if (e.fuseT <= 0) this._explodeBomber(e); return; }
       if (dist < T.fuseRange && Math.abs(dy) < 2.2 && e.los) { e.fuseT = T.fuse; audio.fuse(e.center); return; }
@@ -602,7 +606,7 @@ export class EnemyManager {
     if (T.bossKind === 'eraser') return this._thinkEraser(e, dt, pp, pc, dist, dy, yawTo, P);
     if (T.bossKind === 'inkblot') return this._thinkInkblot(e, dt, pp, pc, dist, dy, yawTo, P);
     if (e.bossAtk) {
-      const a = e.bossAtk; a.t += dt; e.yawT = yawTo; b.vel.x = damp(b.vel.x, 0, 5, dt); b.vel.z = damp(b.vel.z, 0, 5, dt);
+      const a = e.bossAtk; a.t += dt * this.speedScale; e.yawT = yawTo; b.vel.x = damp(b.vel.x, 0, 5, dt); b.vel.z = damp(b.vel.z, 0, 5, dt);
       if (a.kind === 'stomp') {
         if (a.t > 0.75 && !a.done) {
           a.done = true; audio.stomp(e.center); ctx.effects.shakeAmt += 0.9; ctx.effects.explosion(b.pos.clone().add(_v.set(0, 0.2, 0)), 7, INK.BLACK);
@@ -627,7 +631,7 @@ export class EnemyManager {
   _thinkEraser(e, dt, pp, pc, dist, dy, yawTo, P) {
     const T = e.T, b = e.body, ctx = this.ctx; e.aimAmt = damp(e.aimAmt, 0, 6, dt);
     if (e.bossAtk) {
-      const a = e.bossAtk; a.t += dt;
+      const a = e.bossAtk; a.t += dt * this.speedScale;
       if (a.kind === 'charge') {
         if (a.t < 0.7) { e.yawT = yawTo; b.vel.x = damp(b.vel.x, 0, 8, dt); b.vel.z = damp(b.vel.z, 0, 8, dt); if (a.t > 0.55 && !a.dir) { a.dir = new THREE.Vector3(pp.x - b.pos.x, 0, pp.z - b.pos.z).normalize(); audio.bossRoar(e.center); } }
         else if (a.t < 1.9) {
@@ -658,7 +662,7 @@ export class EnemyManager {
   _thinkInkblot(e, dt, pp, pc, dist, dy, yawTo, P) {
     const T = e.T, b = e.body, ctx = this.ctx; e.aimAmt = damp(e.aimAmt, e.los ? 1 : 0, 6, dt);
     if (e.bossAtk) {
-      const a = e.bossAtk; a.t += dt; e.yawT = yawTo; b.vel.x = damp(b.vel.x, 0, 6, dt); b.vel.z = damp(b.vel.z, 0, 6, dt);
+      const a = e.bossAtk; a.t += dt * this.speedScale; e.yawT = yawTo; b.vel.x = damp(b.vel.x, 0, 6, dt); b.vel.z = damp(b.vel.z, 0, 6, dt);
       if (a.kind === 'spray') {
         if (a.t > 0.6 && a.shots < 9 && a.t > 0.6 + a.shots * 0.09) {
           _v.setFromMatrixPosition(e.parts.torso.matrixWorld); _v.y += 0.8;
@@ -686,7 +690,7 @@ export class EnemyManager {
     if (e.los) e.yawT = yawTo;
   }
   _thinkFlyer(e, dt, pc, P) {
-    const T = e.T, b = e.body, ctx = this.ctx; e.flyT -= dt; e.cool -= dt;
+    const T = e.T, b = e.body, ctx = this.ctx; e.flyT -= dt; e.cool -= dt * this.speedScale;
     const want = _v2;
     if (e.flyState === 'stunned') { b.vel.y -= 20 * dt; if (b.onGround || e.t > 2.2) { e.flyState = 'climb'; e.flyT = 1.2; e.state = 'hunt'; } }
     else if (e.flyState === 'orbit') {
@@ -715,7 +719,7 @@ export class EnemyManager {
     const T = e.T, ctx = this.ctx; const muzzle = _v.setFromMatrixPosition(e.tip.matrixWorld);
     if (T.weapon === 'sniper') {
       if (e.cool > 0) { this._hideLaser(e); return; }
-      e.aimT += dt;
+      e.aimT += dt * this.speedScale;
       // The beam chases the player rather than being glued to them, and the shot goes exactly
       // where the beam is pointing - so if you keep moving once you see it, it misses.
       if (!e.aimPoint) { e.aimPoint = pc.clone(); }
@@ -729,7 +733,7 @@ export class EnemyManager {
       }
       return;
     }
-    if (e.burstLeft > 0) { e.burstT -= dt; if (e.burstT <= 0) { e.burstT = T.burstInt; e.burstLeft--; this._fireOne(e, muzzle, pc, T.spread, T.pspeed, T.dmg, 0.045, P); audio.enemyShot(e.center); if (e.burstLeft === 0) e.cool = rand(T.cool[0], T.cool[1]); } return; }
+    if (e.burstLeft > 0) { e.burstT -= dt * this.speedScale; if (e.burstT <= 0) { e.burstT = T.burstInt; e.burstLeft--; this._fireOne(e, muzzle, pc, T.spread, T.pspeed, T.dmg, 0.045, P); audio.enemyShot(e.center); if (e.burstLeft === 0) e.cool = rand(T.cool[0], T.cool[1]); } return; }
     if (e.cool <= 0) {
       if (T.weapon === 'shotgun') { for (let i = 0; i < T.pellets; i++) this._fireOne(e, muzzle, pc, T.spread, T.pspeed * rand(0.85, 1.1), T.dmg, 0.05, P); audio.shotgun(e.center); e.cool = rand(T.cool[0], T.cool[1]); ctx.effects.strokeBurst(muzzle, INK.ORANGE, 8, 5, { life: 0.1, size: 0.04 }); }
       else { e.burstLeft = T.burst; e.burstT = 0; }
@@ -761,7 +765,7 @@ export class EnemyManager {
     if (e.flyState === 'stunned') J.body.rotation.z += dt * 12;
   }
   _animate(e, dt, pc) {
-    const b = e.body, J = e.J, T = e.T; const sp = Math.hypot(b.vel.x, b.vel.z);
+    const b = e.body, J = e.J, T = e.T; const sp = Math.hypot(b.vel.x, b.vel.z) * this.speedScale;
     e.walk = damp(e.walk, clamp(sp / 4, 0, 1), 10, dt); const w = e.walk;
     e.phase += dt * (sp * 2.2 + (sp > 0.4 ? 3 : 0)); const s = Math.sin(e.phase), c = Math.cos(e.phase);
     J.legL.rotation.x = s * 0.9 * w; J.legR.rotation.x = -s * 0.9 * w; J.shinL.rotation.x = Math.max(0, c) * 1.1 * w; J.shinR.rotation.x = Math.max(0, -c) * 1.1 * w;
