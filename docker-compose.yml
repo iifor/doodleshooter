@@ -6,6 +6,7 @@ services:
       CF_TURN_KEY_ID: ${CF_TURN_KEY_ID:-}
       CF_TURN_API_TOKEN: ${CF_TURN_API_TOKEN:-}
       CF_TURN_TTL_SECONDS: ${CF_TURN_TTL_SECONDS:-3600}
+      PAPERSHOOT_STUN_SERVERS: "${PAPERSHOOT_STUN_SERVERS-}"
 
   papershooter:
     build: .

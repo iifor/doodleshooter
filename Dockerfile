@@ -1,4 +1,4 @@
-# 涂鸦街区 (Doodle District) - 静态站点 Dockerfile
+# Paper Shooter static site Dockerfile
 FROM nginx:1.27-alpine
 
 # 站点文件复制到 nginx 默认站点目录
@@ -12,6 +12,12 @@ RUN printf 'server {\n\
     index index.html;\n\
     gzip on;\n\
     gzip_types text/plain text/css application/javascript application/json image/svg+xml;\n\
+    location = /api/ice-servers {\n\
+        proxy_pass http://turn-api:3000;\n\
+        proxy_http_version 1.1;\n\
+        proxy_set_header Host $host;\n\
+        add_header Cache-Control "no-store" always;\n\
+    }\n\
     location = /api/turn-credentials {\n\
         proxy_pass http://turn-api:3000;\n\
         proxy_http_version 1.1;\n\

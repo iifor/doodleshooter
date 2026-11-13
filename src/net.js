@@ -9,19 +9,22 @@
 
 // a local dev server gets its own namespace so testing can never wander into a live lobby
 const LOCAL = typeof location !== 'undefined' && /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
+// Keep the deployed lobby namespace stable so existing Doodle District clients remain reachable.
 const PREFIX = LOCAL ? 'doodledev-' : 'doodledistrict-';
 const PUBLIC_SLOTS = 16;
 // Skip a few transient PeerJS signaling disconnects while reserving a public ID.
 const MAX_PUBLIC_SLOT_NETWORK_RETRIES = 5;
 const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 export const makeCode = () => Array.from({ length: 5 }, () => ALPHABET[Math.floor(Math.random() * ALPHABET.length)]).join('');
-const PEER_OPTS = { debug: 0, config: { iceServers: [{ urls: 'stun:stun.cloudflare.com:3478' }] } };
+const FALLBACK_STUN_SERVERS = [];
+const PEER_OPTS = { debug: 0, config: { iceServers: FALLBACK_STUN_SERVERS } };
 const JOIN_TIMEOUT = 14000, QUICK_TIMEOUT = 11000, SIGNAL_TIMEOUT = 12000;
 const TURN_URL_PRIORITY = [
   'turn:turn.cloudflare.com:3478?transport=udp',
   'turn:turn.cloudflare.com:443?transport=udp',
   'turns:turn.cloudflare.com:443?transport=tcp',
 ];
+let cachedStunServers = null, stunServersRequest = null;
 let cachedTurnServers = null, cachedTurnExpiresAt = 0, turnServersRequest = null;
 
 function peerAvailable() { return typeof window !== 'undefined' && typeof window.Peer === 'function'; }
@@ -45,13 +48,32 @@ function selectTurnServers(servers) {
 }
 
 async function peerOptions() {
-  try {
-    const turnServers = await loadTurnServers();
-    return { ...PEER_OPTS, config: { ...PEER_OPTS.config, iceServers: [...PEER_OPTS.config.iceServers, ...turnServers] } };
-  } catch (err) {
-    console.warn('Cloudflare TURN credentials unavailable; trying STUN only.', err);
-    return PEER_OPTS;
-  }
+  const [stunResult, turnResult] = await Promise.allSettled([loadStunServers(), loadTurnServers()]);
+  const stunServers = stunResult.status === 'fulfilled' ? stunResult.value : FALLBACK_STUN_SERVERS;
+  const turnServers = turnResult.status === 'fulfilled' ? turnResult.value : [];
+  if (stunResult.status === 'rejected') console.warn('Configured STUN servers unavailable; continuing without STUN.', stunResult.reason);
+  if (turnResult.status === 'rejected') console.warn('Cloudflare TURN credentials unavailable; using STUN only.', turnResult.reason);
+  return { ...PEER_OPTS, config: { ...PEER_OPTS.config, iceServers: [...stunServers, ...turnServers] } };
+}
+
+async function loadStunServers() {
+  if (cachedStunServers) return cachedStunServers;
+  if (stunServersRequest) return stunServersRequest;
+  stunServersRequest = (async () => {
+    const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), 5000);
+    try {
+      const response = await fetch('/api/ice-servers', { cache: 'no-store', signal: controller.signal });
+      if (!response.ok) throw new Error(`ICE server endpoint returned ${response.status}`);
+      const payload = await response.json();
+      if (!Array.isArray(payload.iceServers) || payload.iceServers.some((server) => {
+        const urls = Array.isArray(server && server.urls) ? server.urls : [server && server.urls];
+        return !urls.length || urls.some((url) => typeof url !== 'string' || !/^stuns?:/i.test(url));
+      })) throw new Error('ICE server response contains invalid STUN servers');
+      return payload.iceServers.map((server) => ({ ...server, urls: Array.isArray(server.urls) ? server.urls : [server.urls] }));
+    } finally { clearTimeout(timer); }
+  })();
+  try { cachedStunServers = await stunServersRequest; return cachedStunServers; }
+  finally { stunServersRequest = null; }
 }
 
 async function loadTurnServers() {

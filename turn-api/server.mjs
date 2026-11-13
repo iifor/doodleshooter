@@ -5,6 +5,13 @@ const turnKeyId = (process.env.CF_TURN_KEY_ID || '').trim();
 const turnApiToken = (process.env.CF_TURN_API_TOKEN || '').trim();
 const requestedTtl = Number.parseInt(process.env.CF_TURN_TTL_SECONDS || '3600', 10);
 const ttl = Number.isInteger(requestedTtl) && requestedTtl >= 300 && requestedTtl <= 172800 ? requestedTtl : 3600;
+const requestedStunServers = process.env.PAPERSHOOT_STUN_SERVERS === undefined
+  ? ''
+  : process.env.PAPERSHOOT_STUN_SERVERS;
+const stunUrls = requestedStunServers.split(',').map((url) => url.trim()).filter(Boolean);
+if (stunUrls.some((url) => !/^stuns?:[^\s,]+$/i.test(url))) {
+  throw new Error('PAPERSHOOT_STUN_SERVERS must contain comma-separated STUN URLs');
+}
 const RATE_LIMIT = 30;
 const RATE_WINDOW_MS = 60_000;
 const requestsByIp = new Map();
@@ -39,6 +46,10 @@ function withinRateLimit(ip) {
 
 const server = http.createServer(async (req, res) => {
   const path = new URL(req.url || '/', 'http://turn-api').pathname;
+  if (path === '/api/ice-servers') {
+    if (req.method !== 'GET') { res.setHeader('allow', 'GET'); return sendJson(res, 405, { error: 'method_not_allowed' }); }
+    return sendJson(res, 200, { iceServers: stunUrls.map((urls) => ({ urls })) });
+  }
   if (path !== '/api/turn-credentials') return sendJson(res, 404, { error: 'not_found' });
   if (req.method !== 'GET') { res.setHeader('allow', 'GET'); return sendJson(res, 405, { error: 'method_not_allowed' }); }
 

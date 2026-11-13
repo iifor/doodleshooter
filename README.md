@@ -30,13 +30,18 @@ public lobby, or opens one for you), create a public or private lobby, or join a
 their five letter code. People can join a match already in progress. The host's browser keeps score;
 each player runs their own body.
 
-### Cloudflare TURN for Docker
+### ICE server configuration for Docker
 
 Create a Realtime TURN key in Cloudflare, copy `.env.example` to `.env`, and set
 `CF_TURN_KEY_ID` and `CF_TURN_API_TOKEN` to the values for that key. Compose keeps them only in the
 private credential API container; the browser receives expiring ICE credentials from
 `/api/turn-credentials`. Do not commit `.env` or put the TURN API token in browser code. Rebuild
 with `docker compose up --build -d` after changing the key.
+
+Set `PAPERSHOOT_STUN_SERVERS` in `.env` to a comma-separated list of STUN URLs. `.env.example`
+contains Cloudflare's public STUN URL as a starting value; replace it with any STUN service you
+control or prefer. An empty value disables STUN servers. The URLs are served by the same-origin ICE
+configuration endpoint, while TURN credentials remain private and short-lived.
 
 ## Controls
 
