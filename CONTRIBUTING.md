@@ -13,6 +13,7 @@ Thanks for helping improve Paper Shooter.
     git clone https://github.com/meyer-pidiache/papershooter.git
     cd papershooter
     git config core.hooksPath .githooks
+    git config pull.rebase true
     npm run check
     python3 serve.py 8910
 
@@ -52,11 +53,18 @@ To compare with the source project, add its repository as a read-only reference 
 before porting them:
 
     git remote add upstream https://github.com/iifor/doodleshooter.git
+    git remote set-url --push upstream DISABLED
     git fetch upstream
     git log --oneline main..upstream/main
 
 Upstream commits can contain source changes and translations with separate authorship. Port only
 the needed changes, preserve attribution, and review the diff before rebasing or merging.
+
+## GitHub repository settings
+
+Protect main with pull requests and require the CI / check and CI / pull-request-title status
+checks. Require linear history, allow rebase merges, and block force pushes to main. These settings
+are stored in GitHub and cannot be enabled by files in this repository.
 
 ## Git hooks and checks
 
