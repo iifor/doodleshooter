@@ -1,0 +1,11 @@
+{
+  "name": "papershooter",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "check": "bash scripts/check.sh"
+  }
+}

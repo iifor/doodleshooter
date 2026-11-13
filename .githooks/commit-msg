@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+message_file=$1
+if ! grep -Eq '^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test)(\([a-z0-9._-]+\))?!?: .+' "$message_file"; then
+  cat >&2 <<'EOF'
+Commit message must follow Conventional Commits:
+
+  <type>[optional scope]: <imperative summary>
+
+Examples:
+  feat(ui): translate the game interface
+  fix(net): retry transient lobby errors
+  ci: check JavaScript syntax in pull requests
+EOF
+  exit 1
+fi
