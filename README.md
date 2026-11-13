@@ -93,3 +93,15 @@ rotate: The Doodler, The Eraser and The Inkblot, each with its own moves.
 The scene renders to a buffer holding shade, an ink id and view-space normals plus a float depth.
 A post pass draws outlines from an inverse-depth Laplacian, adds surface-following hatching, paper
 grain, ruled lines and the red margin. Wobble is static so nothing flickers.
+
+## Development
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for local setup, Git hooks, commit conventions, and the
+rebase-based trunk workflow.
+
+## License and attribution
+
+This fork is based on [iifor/doodleshooter](https://github.com/iifor/doodleshooter). The PolyForm
+Noncommercial terms in [LICENSE.md](LICENSE.md) apply only to original contributions by Meyer
+Pidiache in this fork. They do not grant rights to inherited upstream code or vendored dependencies;
+see [NOTICE.md](NOTICE.md).
