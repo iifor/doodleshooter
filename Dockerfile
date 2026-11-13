@@ -12,6 +12,15 @@ RUN printf 'server {\n\
     index index.html;\n\
     gzip on;\n\
     gzip_types text/plain text/css application/javascript application/json image/svg+xml;\n\
+    location = /api/turn-credentials {\n\
+        proxy_pass http://turn-api:3000;\n\
+        proxy_http_version 1.1;\n\
+        proxy_set_header Host $host;\n\
+        proxy_set_header X-Real-IP $remote_addr;\n\
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n\
+        proxy_set_header CF-Connecting-IP $http_cf_connecting_ip;\n\
+        add_header Cache-Control "no-store" always;\n\
+    }\n\
     location /vendor/ {\n\
         expires 30d;\n\
         add_header Cache-Control "public, immutable";\n\

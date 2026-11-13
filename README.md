@@ -23,10 +23,20 @@ then open http://127.0.0.1:8910. On Vercel (or any static host) just deploy the 
 - **Free for all**: up to ten players, first to 20 kills, with a ten minute cap shown on screen that starts once a second player is in. Anyone in the lobby can start. After the death cam a press of any button brings you back with a two second shield; two and a half minutes without input gets you kicked, with a one-click rejoin. Health
   regenerates after a few seconds out of combat (not while sprinting), so only ammo drops in.
 
-Multiplayer is peer-to-peer over WebRTC (PeerJS), so it works from a static host with no game
-server. Under PLAY ONLINE you can Quick Play (joins an open public lobby, or opens one for you),
-create a public or private lobby, or join a friend's lobby with their five letter code. People can
-join a match already in progress. The host's browser keeps score; each player runs their own body.
+Multiplayer uses PeerJS for signaling and WebRTC for player connections. Players connect directly
+when their networks allow it; the Docker setup can request short-lived Cloudflare TURN credentials
+so restrictive networks can relay traffic. Under PLAY ONLINE you can Quick Play (joins an open
+public lobby, or opens one for you), create a public or private lobby, or join a friend's lobby with
+their five letter code. People can join a match already in progress. The host's browser keeps score;
+each player runs their own body.
+
+### Cloudflare TURN for Docker
+
+Create a Realtime TURN key in Cloudflare, copy `.env.example` to `.env`, and set
+`CF_TURN_KEY_ID` and `CF_TURN_API_TOKEN` to the values for that key. Compose keeps them only in the
+private credential API container; the browser receives expiring ICE credentials from
+`/api/turn-credentials`. Do not commit `.env` or put the TURN API token in browser code. Rebuild
+with `docker compose up --build -d` after changing the key.
 
 ## Controls
 

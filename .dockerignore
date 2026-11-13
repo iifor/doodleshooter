@@ -6,3 +6,6 @@ serve.py
 Dockerfile
 docker-compose.yml
 .dockerignore
+.env
+.env.*
+turn-api/

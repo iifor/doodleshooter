@@ -1,8 +1,17 @@
 services:
-  doodleshooter:
-    build: .
-    image: doodleshooter:latest
-    container_name: doodleshooter
+  turn-api:
+    build: ./turn-api
     restart: unless-stopped
+    environment:
+      CF_TURN_KEY_ID: ${CF_TURN_KEY_ID:-}
+      CF_TURN_API_TOKEN: ${CF_TURN_API_TOKEN:-}
+      CF_TURN_TTL_SECONDS: ${CF_TURN_TTL_SECONDS:-3600}
+
+  papershooter:
+    build: .
+    image: papershooter:latest
+    restart: unless-stopped
+    depends_on:
+      - turn-api
     ports:
       - "127.0.0.1:8901:80"

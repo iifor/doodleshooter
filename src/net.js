@@ -1,6 +1,6 @@
 // Peer-to-peer networking over WebRTC, using the public PeerJS signalling service.
-// Nothing runs on a server of ours: the host player's browser is the authority, every other
-// player connects straight to it. That is what lets multiplayer work from a static Vercel deploy.
+// The host player's browser is authoritative. A small same-origin endpoint obtains temporary
+// Cloudflare TURN credentials so WebRTC can relay traffic when a direct connection is blocked.
 //
 // Lobby codes are just peer ids. A private lobby takes a random 5 letter code; a public lobby
 // claims one of a handful of well-known ids (PUB0..PUB7) so quick play can find it by knocking on
@@ -11,13 +11,68 @@
 const LOCAL = typeof location !== 'undefined' && /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
 const PREFIX = LOCAL ? 'doodledev-' : 'doodledistrict-';
 const PUBLIC_SLOTS = 16;
+// Skip a few transient PeerJS signaling disconnects while reserving a public ID.
+const MAX_PUBLIC_SLOT_NETWORK_RETRIES = 5;
 const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 export const makeCode = () => Array.from({ length: 5 }, () => ALPHABET[Math.floor(Math.random() * ALPHABET.length)]).join('');
-const PEER_OPTS = { debug: 0, config: { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }, { urls: 'stun:stun.cloudflare.com:3478' }] } };
+const PEER_OPTS = { debug: 0, config: { iceServers: [{ urls: 'stun:stun.cloudflare.com:3478' }] } };
 const JOIN_TIMEOUT = 14000, QUICK_TIMEOUT = 11000, SIGNAL_TIMEOUT = 12000;
+const TURN_URL_PRIORITY = [
+  'turn:turn.cloudflare.com:3478?transport=udp',
+  'turn:turn.cloudflare.com:443?transport=udp',
+  'turns:turn.cloudflare.com:443?transport=tcp',
+];
+let cachedTurnServers = null, cachedTurnExpiresAt = 0, turnServersRequest = null;
 
 function peerAvailable() { return typeof window !== 'undefined' && typeof window.Peer === 'function'; }
 const idFromError = (err) => { const m = /peer\s+(\S+)/.exec(String(err && err.message || '')); return m ? m[1] : null; };
+
+function selectTurnServers(servers) {
+  const normalized = servers.map((server) => ({ ...server, urls: Array.isArray(server.urls) ? server.urls : [server.urls] }));
+  const selected = [];
+  for (const url of TURN_URL_PRIORITY) {
+    const server = normalized.find((item) => item.urls.includes(url));
+    if (!server) continue;
+    // Cloudflare issues the same credentials for its relay endpoints. Keep alternate
+    // transport/port choices together so Firefox can find a route on strict firewalls
+    // without creating a separate ICE server entry for every URL.
+    let group = selected.find((item) => item.username === server.username && item.credential === server.credential);
+    if (!group) { group = { ...server, urls: [] }; selected.push(group); }
+    group.urls.push(url);
+  }
+  if (!selected.length) throw new Error('Cloudflare TURN response has no supported relay URLs');
+  return selected;
+}
+
+async function peerOptions() {
+  try {
+    const turnServers = await loadTurnServers();
+    return { ...PEER_OPTS, config: { ...PEER_OPTS.config, iceServers: [...PEER_OPTS.config.iceServers, ...turnServers] } };
+  } catch (err) {
+    console.warn('Cloudflare TURN credentials unavailable; trying STUN only.', err);
+    return PEER_OPTS;
+  }
+}
+
+async function loadTurnServers() {
+  if (cachedTurnServers && cachedTurnExpiresAt > Date.now() + 60_000) return cachedTurnServers;
+  if (turnServersRequest) return turnServersRequest;
+  turnServersRequest = (async () => {
+    const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), 15_000);
+    try {
+      const response = await fetch('/api/turn-credentials', { cache: 'no-store', signal: controller.signal });
+      if (!response.ok) throw new Error(`TURN credentials endpoint returned ${response.status}`);
+      const payload = await response.json();
+      if (!Array.isArray(payload.iceServers) || !payload.iceServers.length) throw new Error('TURN credentials response has no ICE servers');
+      cachedTurnServers = selectTurnServers(payload.iceServers);
+      const expiresAt = Number(payload.expiresAt);
+      cachedTurnExpiresAt = Number.isFinite(expiresAt) ? expiresAt : Date.now() + 55 * 60_000;
+      return cachedTurnServers;
+    } finally { clearTimeout(timer); }
+  })();
+  try { return await turnServersRequest; }
+  finally { turnServersRequest = null; }
+}
 
 export class Net {
   constructor() {
@@ -30,10 +85,11 @@ export class Net {
   on(type, fn) { this.handlers.set(type, fn); }
   _emit(type, data, from) { const h = this.handlers.get(type); if (h) h(data, from); }
 
-  _newPeer(id) {
+  async _newPeer(id) {
+    if (!peerAvailable()) throw new Error('networking library did not load');
+    const opts = await peerOptions();
     return new Promise((resolve, reject) => {
-      if (!peerAvailable()) return reject(new Error('networking library did not load'));
-      const peer = new window.Peer(id, PEER_OPTS); let settled = false;
+      const peer = new window.Peer(id, opts); let settled = false;
       const timer = setTimeout(() => { if (!settled) { settled = true; peer.destroy(); reject(new Error('signalling server timed out')); } }, SIGNAL_TIMEOUT);
       peer.on('open', () => { if (settled) return; settled = true; clearTimeout(timer); resolve(peer); });
       peer.on('error', (err) => { if (settled) return; settled = true; clearTimeout(timer); peer.destroy(); reject(err); });
@@ -62,8 +118,19 @@ export class Net {
     this.leave(); this.isHost = true; this.isPublic = isPublic;
     if (code) { this.code = String(code).toUpperCase(); this.peer = await this._newPeer(PREFIX + this.code); }
     else if (isPublic) {
+      let networkRetries = 0;
       for (let slot = 0; slot < PUBLIC_SLOTS; slot++) {
-        try { this.peer = await this._newPeer(PREFIX + 'PUB' + slot); this.code = 'PUB' + slot; break; } catch (e) { if (!(e && e.type === 'unavailable-id')) throw e; }
+        const slotCode = 'PUB' + slot;
+        try {
+          this.peer = await this._newPeer(PREFIX + slotCode); this.code = slotCode;
+          break;
+        } catch (e) {
+          const occupied = !!(e && e.type === 'unavailable-id');
+          const retryNetwork = !!(e && e.type === 'network' && networkRetries < MAX_PUBLIC_SLOT_NETWORK_RETRIES);
+          if (retryNetwork) networkRetries++;
+          const retry = occupied || retryNetwork;
+          if (!retry) throw e;
+        }
       }
       if (!this.peer) throw new Error('all public lobbies are busy - host a private one');
     } else {
@@ -115,7 +182,7 @@ export class Net {
   // try every public slot at the same time and take the first host that says welcome
   async quickJoin(meta = {}, onStatus = null) {
     this.leave(); this.isHost = false; this.peer = await this._newPeer(null); this.id = this.peer.id; this._keepAlive(this.peer);
-    if (onStatus) onStatus('正在寻找开放的大厅…');
+    if (onStatus) onStatus('looking for an open lobby…');
     const ids = []; for (let i = 0; i < PUBLIC_SLOTS; i++) for (const suf of ['', '-1', '-2', '-3']) ids.push(PREFIX + 'PUB' + i + suf);
     const winner = await new Promise((resolve) => {
       let pending = ids.length, done = false; const attempts = [], offers = []; let gather = null;
@@ -129,7 +196,7 @@ export class Net {
       for (const hostId of ids) {
         let conn; try { conn = this.peer.connect(hostId, { reliable: true, serialization: 'json', metadata: probeMeta }); } catch (e) { pending--; continue; }
         const a = { conn, hostId, done: false }; attempts.push(a);
-        conn.on('data', (msg) => { if (!msg || a.done) return; if (msg.t === 'welcome') { a.done = true; pending--; offers.push({ conn, hostId, welcome: msg.d }); if (onStatus) onStatus(`找到 ${offers.length} 个开放大厅…`); if (pending <= 0) settle(); else if (!gather) gather = setTimeout(settle, 1500); } else if (msg.t === 'refused') failOne(a); });
+        conn.on('data', (msg) => { if (!msg || a.done) return; if (msg.t === 'welcome') { a.done = true; pending--; offers.push({ conn, hostId, welcome: msg.d }); if (onStatus) onStatus(`found ${offers.length} open ${offers.length === 1 ? 'lobby' : 'lobbies'}…`); if (pending <= 0) settle(); else if (!gather) gather = setTimeout(settle, 1500); } else if (msg.t === 'refused') failOne(a); });
         conn.on('error', () => failOne(a)); conn.on('close', () => failOne(a));
       }
       if (pending <= 0) settle();
@@ -155,7 +222,7 @@ export class Net {
       for (const hostId of ids) {
         let conn; try { conn = peer.connect(hostId, { reliable: true, serialization: 'json', metadata: probeMeta }); } catch (e) { pending--; continue; }
         const a = { conn, hostId, done: false }; attempts.push(a);
-        conn.on('data', (msg) => { if (!msg || a.done) return; if (msg.t === 'welcome' || msg.t === 'refused') { a.done = true; pending--; const d = msg.d || {}; offers.push({ id: hostId.slice(PREFIX.length), code: d.code || hostId.slice(PREFIX.length), players: d.players || 0, max: d.max || 10, inMatch: !!d.inMatch, hostName: d.hostName || '', full: msg.t === 'refused' }); if (onStatus) onStatus(`找到 ${offers.length} 个…`); if (pending <= 0) settle(); else if (!gather) gather = setTimeout(settle, 2200); } });
+        conn.on('data', (msg) => { if (!msg || a.done) return; if (msg.t === 'welcome' || msg.t === 'refused') { a.done = true; pending--; const d = msg.d || {}; offers.push({ id: hostId.slice(PREFIX.length), code: d.code || hostId.slice(PREFIX.length), players: d.players || 0, max: d.max || 10, inMatch: !!d.inMatch, hostName: d.hostName || '', full: msg.t === 'refused' }); if (onStatus) onStatus(`found ${offers.length}…`); if (pending <= 0) settle(); else if (!gather) gather = setTimeout(settle, 2200); } });
         conn.on('error', () => failOne(a)); conn.on('close', () => failOne(a));
       }
       if (pending <= 0) settle();
