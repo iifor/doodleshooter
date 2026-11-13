@@ -4,21 +4,21 @@ export class HUD {
     this.root = root;
     root.innerHTML = `
       <div class="scope" id="scope"><div class="mask"></div><div class="ring"></div><div class="cx"></div><div class="cy"></div><div class="dot"></div></div>
-      <div class="focus-meter" id="focusmeter"><div class="fm-label">太刀</div><div class="fm-tube"><div class="fm-fill" id="fmfill"></div><i class="fm-f1"></i><i class="fm-f2"></i><i class="fm-f3"></i></div><div class="fm-ready" id="fmready">拔刀就绪</div></div>
+      <div class="focus-meter" id="focusmeter"><div class="fm-label">KATANA</div><div class="fm-tube"><div class="fm-fill" id="fmfill"></div><i class="fm-f1"></i><i class="fm-f2"></i><i class="fm-f3"></i></div><div class="fm-ready" id="fmready">SLASH READY</div></div>
       <div class="focus-mark" id="focusmark"><i></i><i></i><i></i><i></i></div>
       <div class="crosshair" id="crosshair"><i class="ch-t"></i><i class="ch-b"></i><i class="ch-l"></i><i class="ch-r"></i><i class="ch-dot"></i></div>
       <div class="grapple-ret" id="gret"></div><div class="gstam" id="gstam" hidden><i id="gstamfill"></i></div>
       <div class="hitmarker" id="hitmarker"><i></i><i></i></div>
       <div class="dmg-ind" id="dmg"></div>
-      <div class="hud-tl"><div class="score">分数 <b id="score">0</b></div><div class="combo" id="combo"></div></div>
-      <div class="hud-tr"><div class="wave">波次 <b id="wave">1</b></div><div class="modifier" id="modifier"></div><div class="left"><b id="left">0</b> 个敌人待消灭</div><div class="timer" id="timer"></div><div class="pvpscore" id="pvpscore" hidden></div></div><div class="board" id="board" hidden></div>
+      <div class="hud-tl"><div class="score">SCORE <b id="score">0</b></div><div class="combo" id="combo"></div></div>
+      <div class="hud-tr"><div class="wave">WAVE <b id="wave">1</b></div><div class="modifier" id="modifier"></div><div class="left"><b id="left">0</b> enemies left</div><div class="timer" id="timer"></div><div class="pvpscore" id="pvpscore" hidden></div></div><div class="board" id="board" hidden></div>
       <div class="bossbar" id="bossbar"><div class="bossname" id="bossname"></div><div class="bar big"><div class="fill red" id="bossfill"></div></div></div>
       <div class="hud-bl">
-        <div class="health"><span>生命</span><div class="bar"><div class="fill" id="hpfill"></div></div><span id="hpnum">100</span></div>
-        <div class="ammo"><b id="mag">30</b><span id="reserve">/120</span><span class="reloading" id="reloading"></span><span class="nades" id="nades" title="手雷"></span></div>
+        <div class="health"><span>HP</span><div class="bar"><div class="fill" id="hpfill"></div></div><span id="hpnum">100</span></div>
+        <div class="ammo"><b id="mag">30</b><span id="reserve">/120</span><span class="reloading" id="reloading"></span><span class="nades" id="nades" title="grenades"></span></div>
         <div class="tally" id="tally"></div>
       </div>
-      <div class="hud-br"><div class="slots" id="slots"></div><div class="weapon" id="weapon">步枪</div><div class="hint" id="hint"></div></div>
+      <div class="hud-br"><div class="slots" id="slots"></div><div class="weapon" id="weapon">RIFLE</div><div class="hint" id="hint"></div></div>
       <div class="tip" id="tip"></div>
       <div class="message"><div class="msg-main" id="msg"></div><div class="msg-sub" id="msgsub"></div></div>
       <div class="killfeed" id="killfeed"></div>
@@ -29,7 +29,7 @@ export class HUD {
     this.el.screen.addEventListener('click', () => { if (this.onScreenClick) this.onScreenClick(); });
   }
   // katana charge gauge: fills with katana kills, catches fire when a focus slash is ready
-  setFocusMeter(show, frac, ready, label = '太刀') {
+  setFocusMeter(show, frac, ready, label = 'KATANA') {
     const m = this.el.focusmeter;
     if (show !== this._fmShow) { this._fmShow = show; m.classList.toggle('on', show); }
     if (!show) return;
@@ -56,7 +56,7 @@ export class HUD {
   grappleTarget(state) { this.el.gret.className = 'grapple-ret' + (state === 1 ? ' on' : state === 2 ? ' on attached' : ''); }
   hitmarker(kill = false, crit = false) { const h = this.el.hitmarker; h.className = 'hitmarker' + (kill ? ' kill' : '') + (crit ? ' crit' : ''); void h.offsetWidth; h.classList.add('show'); }
   setAmmo(mag, reserve, magSize, reloading = false) {
-    this.el.mag.textContent = mag; this.el.reserve.textContent = '/' + reserve; this.el.reloading.textContent = reloading ? ' 换弹中…' : '';
+    this.el.mag.textContent = mag; this.el.reserve.textContent = '/' + reserve; this.el.reloading.textContent = reloading ? ' reloading…' : '';
     if (mag !== this._lastTally) { this._lastTally = mag; let s = ''; for (let i = 0; i < Math.min(mag, 40); i++) s += '<i></i>'; this.el.tally.innerHTML = s; }
   }
   setKatana() { this.el.mag.textContent = '∞'; this.el.reserve.textContent = ''; this.el.reloading.textContent = ''; if (this._lastTally !== -1) { this.el.tally.innerHTML = ''; this._lastTally = -1; } }
@@ -70,7 +70,7 @@ export class HUD {
   setWave(n, left) { this.el.wave.textContent = n; this.el.left.textContent = left; }
   setModifier(text) { this.el.modifier.textContent = text || ''; }
   setTimer(text) { this.el.timer.textContent = text || ''; }
-  setScore(score, combo) { this.el.score.textContent = score; this.el.combo.textContent = combo > 1 ? '连击 x' + combo : ''; }
+  setScore(score, combo) { this.el.score.textContent = score; this.el.combo.textContent = combo > 1 ? 'combo x' + combo : ''; }
   setWeapon(name, hint) { this.el.weapon.textContent = name; this.el.hint.textContent = hint || ''; }
   setBoss(name, frac) { if (frac == null) { this.el.bossbar.classList.remove('show'); return; } this.el.bossbar.classList.add('show'); this.el.bossname.textContent = name; this.el.bossfill.style.width = (Math.max(0, frac) * 100).toFixed(1) + '%'; }
   tip(text, dur = 5) { this.el.tip.innerHTML = text; this.el.tip.classList.add('show'); this._tipT = dur; }
@@ -89,32 +89,32 @@ export class HUD {
   }
 }
 
-export const KB_KEYS = { fire: 'LMB', aim: 'RMB', block: 'RMB', jump: 'Space', sprint: 'Shift', slide: 'C', dash: 'C', grapple: 'Q', melee: 'F', reload: 'R', grenade: 'G', focus: '左右键同按（或 X）', next: '滚轮', pause: 'Esc', confirm: 'Space', score: 'Tab' };
+export const KB_KEYS = { fire: 'LMB', aim: 'RMB', block: 'RMB', jump: 'Space', sprint: 'Shift', slide: 'C', dash: 'C', grapple: 'Q', melee: 'F', reload: 'R', grenade: 'G', focus: 'both mouse buttons (or X)', next: 'wheel', pause: 'Esc', confirm: 'Space', score: 'Tab' };
 export const PAD_KEYS = { fire: 'R2', aim: 'L2', block: 'L2', jump: '✕', sprint: 'L3', slide: '○', dash: '○', grapple: 'L1', melee: 'R1', reload: '□', grenade: 'R3', focus: 'L2 + R2', next: '△', pause: 'Options', confirm: '✕', score: 'Create' };
 export const CONTROLS_HTML = `
 <div class="cols">
-  <div><div class="colhead">鼠标 + 键盘</div>
-    <div><b>WASD</b> 移动 &nbsp; <b>鼠标</b> 视角 &nbsp; <b>Shift</b> 疾跑</div>
-    <div><b>LMB</b> 开火 / 挥砍 &nbsp; <b>RMB</b> 开镜瞄准 / 格挡</div>
-    <div><b>Space</b> 跳跃（在墙上再按 = 蹬墙跳）</div>
-    <div>空中再按 <b>Space</b> = 二段跳</div>
-    <div><b>C / Ctrl</b> 地面滑铲 · 空中冲刺</div>
-    <div><b>Q / E</b> 抓钩：点按摆荡，长按收绳，跳跃起飞</div>
-    <div><b>F</b> 太刀快速挥砍 &nbsp; <b>R</b> 换弹 &nbsp; <b>M</b> 音乐</div>
-    <div><b>G</b> 手雷 · 按住可扔得更远</div>
-    <div><b>Tab</b> 计分板（联机） &nbsp; <b>Esc</b> 暂停</div>
-    <div><b>左右键同按</b> 能量满后施展冲刺斩</div>
-    <div><b>1-4 / 滚轮</b> 步枪 · 霰弹枪 · 狙击枪 · 太刀</div>
+  <div><div class="colhead">MOUSE + KEYBOARD</div>
+    <div><b>WASD</b> move &nbsp; <b>Mouse</b> look &nbsp; <b>Shift</b> sprint</div>
+    <div><b>LMB</b> fire / slash &nbsp; <b>RMB</b> aim down sights / block</div>
+    <div><b>Space</b> jump (again on a wall = wall jump)</div>
+    <div><b>Space</b> again in the air = double jump</div>
+    <div><b>C / Ctrl</b> slide on the ground · air dash in the air</div>
+    <div><b>Q / E</b> grapple: tap to swing, hold to reel, jump to launch</div>
+    <div><b>F</b> quick katana slash &nbsp; <b>R</b> reload &nbsp; <b>M</b> music</div>
+    <div><b>G</b> grenade · hold it to throw further</div>
+    <div><b>Tab</b> scoreboard (online) &nbsp; <b>Esc</b> pause</div>
+    <div><b>Both mouse buttons</b> dash-slash once the gauge is lit</div>
+    <div><b>1-4 / wheel</b> rifle · shotgun · sniper · katana</div>
   </div>
-  <div><div class="colhead">PS5 手柄</div>
-    <div><b>左摇杆</b> 移动 &nbsp; <b>右摇杆</b> 视角 &nbsp; <b>L3</b> 疾跑</div>
-    <div><b>R2</b> 开火 / 挥砍 &nbsp; <b>L2</b> 瞄准 / 格挡</div>
-    <div><b>✕</b> 跳跃 &nbsp; <b>○</b> 滑铲 · 空中冲刺</div>
-    <div><b>L1</b> 抓钩（长按收绳，✕ 起飞）</div>
-    <div><b>L2 + R2</b> 太刀能量满后施展冲刺斩</div>
-    <div><b>R1</b> 太刀快速挥砍，随后自动切回枪械</div>
-    <div><b>□</b> 换弹 &nbsp; <b>△</b> 下一把武器</div>
-    <div><b>R3 / 十字键上</b> 手雷 · 按住可扔得更远</div>
-    <div><b>Create</b> 计分板（联机） &nbsp; <b>Options</b> 暂停</div>
+  <div><div class="colhead">PS5 CONTROLLER</div>
+    <div><b>L stick</b> move &nbsp; <b>R stick</b> look &nbsp; <b>L3</b> sprint</div>
+    <div><b>R2</b> fire / slash &nbsp; <b>L2</b> aim / block</div>
+    <div><b>✕</b> jump &nbsp; <b>○</b> slide · air dash</div>
+    <div><b>L1</b> grapple (hold to reel, ✕ to launch)</div>
+    <div><b>L2 + R2</b> dash-slash once the katana gauge is lit</div>
+    <div><b>R1</b> quick katana slash, then back to your gun</div>
+    <div><b>□</b> reload &nbsp; <b>△</b> next weapon</div>
+    <div><b>R3 / d-pad up</b> grenade · hold to throw further</div>
+    <div><b>Create</b> scoreboard (online) &nbsp; <b>Options</b> pause</div>
   </div>
 </div>`;

@@ -8,7 +8,7 @@ import { buildHumanoid } from './enemies.js';
 
 // Doodle Mexico is built and kept, but off the menu until it is ready; flip this to offer it again
 export const MEXICO_READY = false;
-export const LEVELS = [{ key: 'district', name: '涂鸦街区', blurb: '街道、屋顶与消防梯' }, ...(MEXICO_READY ? [{ key: 'mexico', name: '涂鸦墨西哥', blurb: '阳光烘烤的广场 · 皮纳塔、塔可和马里亚奇乐队' }] : [])];
+export const LEVELS = [{ key: 'district', name: 'DOODLE DISTRICT', blurb: 'streets, rooftops and fire escapes' }, ...(MEXICO_READY ? [{ key: 'mexico', name: 'DOODLE MEXICO', blurb: 'a sun-baked plaza · piñatas, tacos and mariachi' }] : [])];
 
 function createBuilder(scene, world) {
   const geos = {}; const L = { rings: [], spawns: [], snipers: [], pickups: [], animated: [], meshes: [], playerStart: new THREE.Vector3(0, 0, 42), bounds: { minX: -55, maxX: 55, minZ: -55, maxZ: 55 }, arenaSpawns: [], grappleMovers: [], breakables: [], key: 'district' };
