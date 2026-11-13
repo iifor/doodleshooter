@@ -6,9 +6,9 @@ import { makeInkMaterial, INK } from './render.js';
 import { rand, choose, TAU } from './util.js';
 import { buildHumanoid } from './enemies.js';
 
-// Doodle Mexico is built and kept, but off the menu until it is ready; flip this to offer it again
-export const MEXICO_READY = false;
-export const LEVELS = [{ key: 'district', name: 'DOODLE DISTRICT', blurb: 'streets, rooftops and fire escapes' }, ...(MEXICO_READY ? [{ key: 'mexico', name: 'DOODLE MEXICO', blurb: 'a sun-baked plaza · piñatas, tacos and mariachi' }] : [])];
+// Keep the existing Mexico builder available in solo and multiplayer map selection.
+export const MEXICO_READY = true;
+export const LEVELS = [{ key: 'district', name: 'PAPER DISTRICT', blurb: 'streets, rooftops and fire escapes' }, ...(MEXICO_READY ? [{ key: 'mexico', name: 'PAPER MEXICO', blurb: 'a sun-baked plaza · piñatas, tacos and mariachi' }] : [])];
 
 function createBuilder(scene, world) {
   const geos = {}; const L = { rings: [], spawns: [], snipers: [], pickups: [], animated: [], meshes: [], playerStart: new THREE.Vector3(0, 0, 42), bounds: { minX: -55, maxX: 55, minZ: -55, maxZ: 55 }, arenaSpawns: [], grappleMovers: [], breakables: [], key: 'district' };

@@ -1,4 +1,4 @@
-# Doodle District
+# Paper Shooter
 
 A first-person survival shooter drawn in blue ballpoint on lined notebook paper. Grapple across
 rooftops and canyons, slice bullets back at the doodles that fired them, lob grenades, and see how
@@ -69,11 +69,11 @@ slashes and turns some bullets aside, and the guns use their own damage table; t
 
 ## Maps
 
-- **Doodle District**: streets, rooftops and fire escapes, with grapple rings on the high spots. Solo
+- **Paper District**: streets, rooftops and fire escapes, with grapple rings on the high spots. Solo
   plays the tight original block. A match opens it up: a ring of empty street, walls, a ribbed dome
   that cannot be hooked, an open field in the middle crossed by a ruler bridge, a few pads hung from
   the dome, and slow paper planes you can hook and ride (the solo planes too).
-- **Doodle Mexico**: a sun-baked pueblo. A plaza with a fountain and a giant sombrero floating over it,
+- **Paper Mexico**: a sun-baked pueblo. A plaza with a fountain and a giant sombrero floating over it,
   a bandstand where three mariachis never stop playing, a church with a bell tower you can climb and
   a domed second tower, adobe houses with roof stairs, papel picado strung across the square, a
   market of striped stalls and hanging piñatas, a taco cart, cacti and mesas all around. Pots, crates,

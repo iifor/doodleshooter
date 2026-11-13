@@ -24,7 +24,7 @@ export function encodeLocal(P, weaponIndex, extra = {}) {
 
 export class RemotePlayer {
   constructor(ctx, id, name, team, ink) {
-    this.ctx = ctx; this.id = id; this.name = name || 'doodle'; this.team = team; this.ink = ink;
+    this.ctx = ctx; this.id = id; this.name = name || 'paper'; this.team = team; this.ink = ink;
     this.isLocal = false; this.alive = true; this.parryWindow = false; this.idle = false; this.idleSince = 0; this.untouched = false; this.away = false; this.hp = 100; this.maxHp = 100; this.speed = 0; this.weaponIndex = 0;
     this.body = { pos: new THREE.Vector3(0, -50, 0), vel: new THREE.Vector3(), halfW: 0.35, height: 1.75, onGround: true };
     this.center = new THREE.Vector3(); this.eye = new THREE.Vector3(); this.forward = new THREE.Vector3(0, 0, -1); this.right = new THREE.Vector3(1, 0, 0);
